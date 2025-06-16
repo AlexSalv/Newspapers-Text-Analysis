@@ -1,0 +1,1607 @@
+---
+title: "The Influence of Political Affiliation on Newspaper Coverage: Analyzing Sentiment and Topic Fluctuations Over Time"
+author: "Ioannis Dikaioulias, Alessandro Salvatori, Deniz Guvenol"
+date: "31-08-2024"
+output:
+  html_notebook: default
+  pdf_document: default
+  fontsize: 12pt
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **1. Introduction**
+
+In October 7 2023, the ongoing Israel-Hamas conflict initiated. At the same time, since February 24 2022, Russian and Ukrainian forces are fighting in a continuous struggle. Both conflicts have had a huge impact on the world economy while the cost in human life is detrimental.
+
+![Source: Financial Times-Ukraine's counteroffensive against Russia in maps: latest updates." Accessed: Jul. 07, 2024.](/Users/alessandrosalvatori/Desktop/KU%20LEUVEN/EXAMS/SECOND%20YEAR/RETAKES/COLLECTING%20AND%20ANALYZING%20BIG%20DATA%20FOR%20SOCIAL%20SCIENCES/PROJECT/PHOTO-2024-08-19-18-22-48.jpg)
+
+U.S.A has been the main source of financial and military aid to Ukraine [2] so far into the war. Nevertheless, the current Israel-Hamas War, has pressured the U.S. budget, and there are ongoing talks within the U.S. senate in regard to the volume and direction of the provided aid.
+
+A growing number of republican senators seem to be opposed of the volume of the support given [3], while democrats appear to be strongly in favor of not disrupting financial support in the war. There are voices that support a more internationally isolated U.S.A that does not interfere with world conflicts and problems and focuses more on internal matters. These voices, mainly from the republican spectrum, appear to oppose U.S.A intervention in both conflicts.
+
+![Source: Pew Research Center](/Users/alessandrosalvatori/Desktop/KU%20LEUVEN/EXAMS/SECOND%20YEAR/RETAKES/COLLECTING%20AND%20ANALYZING%20BIG%20DATA%20FOR%20SOCIAL%20SCIENCES/PROJECT/PHOTO-2024-08-19-18-22-41.jpg)
+
+As can be indicated in the above figure from [4], the american public seems to be separated in terms of supporting the Ukrainian effort in the war. The percentage of republicans who support the war appears to be less than the percentage of democrats who support the war.
+
+-How the research notebook is organized 
+
+Disclaimer: ChatGPT 3.5/4.0 was used in this project, mainly for code debugging and text clean-up.  
+
+# **2. Research Question**
+
+***Main question***
+
+Does the political affiliation (liberal or conservative) of a newspaper, play a role on how topics fluctuate through time, and which topics are the most dominant? Does the difference in political affiliation have an impact on the sentiment of published articles? Will a certain newspaper be more or less in favor of providing aid in both or either wars.
+
+***Subquestions***
+
+-   What are the main topics addressed by a newspaper and across newspapers
+-   How topics fluctuate through time across both newspapers
+-   How does the sentiment of articles fluctuate regarding war funding and aid across news agencies
+
+To address the above questions articles were collected, on a daily and weekly level, from two main U.S. newspapers, the Wall Street Journal and the New York Times, starting from November 2023 (start of Israel-Hamas War) to June 2024 (current time). According to Boston's university libraries, [6] the Wall Street Journal leans towards a more conservative political view, while the New York Times seems to follow a more liberal political view. A total of 2621 articles were collected, 1411 from New York Times and 1210 from the Wall Street Journal.
+
+# **3. Libraries**
+
+```{r}
+library(tidyverse)
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(devtools)
+library(quanteda) 
+library(quanteda.textplots)
+library(quanteda.textstats)
+library(udpipe) 
+library(spacyr)
+library(tm)
+library(lubridate)
+library(spacyr)
+library(topicmodels)
+library("ldatuning")
+library(slam)
+library(tidytext)
+library(LDAvis)
+library(alluvial)
+library(patchwork)
+library(tinytex)
+library(RColorBrewer)
+library(caret)
+library(syuzhet)
+
+```
+
+# **4. Data Retrieval**
+
+Two methods were used to retrieve data, New York Times API [5] and ProQuest. New York Times API is a free access API, with limitation that access is not given to the full content of the articles but only to the lead paragraph. ProQuest also has the limitation that the data are provided in text format. Therefore certain text processing was needed to transform the data into tabular format.
+
+*New York Times API*
+
+```{r}
+
+# # Set your API key
+# api_key <- ""
+# 
+# # Set the base URL for the New York Times API
+# base_url <- "https://api.nytimes.com/svc/search/v2/articlesearch.json"
+# 
+# # Define the parameters for the API request
+# params <- list(
+#   q = "",
+#   fq = 'headline:("Ukraine" "Israel") AND document_type:("article")',
+#   begin_date = "20231101", # Specify your start date in YYYYMMDD format
+#   end_date = "20240601",   # Specify your end date in YYYYMMDD format
+#   `api-key` = api_key,
+#   page=0,
+#   sort="oldest"
+# )
+# 
+# # Make the initial API request to get metadata
+# response <- GET(base_url, query = params)
+# content <- content(response, "text", encoding = "UTF-8")
+# articles <- fromJSON(content)
+# article_list_87 <- articles$response$docs
+# 
+# # Calculate the number of pages
+# maxPages <- round(articles$response$meta$hits / 10) - 1
+# # maxPages <- 100
+# # Initialize a list to store all pages of results
+
+
+```
+
+```{r}
+
+# # maxPages <- 100
+# 
+# pages <- list()
+# 
+# # Set your API key
+# api_key <- ""
+# 
+# for(i in 0:maxPages){
+#   # Set the base URL for the New York Times API
+#   
+#   base_url <- "https://api.nytimes.com/svc/search/v2/articlesearch.json"
+#   
+#   params <- list(
+#     q = "",
+#     fq = 'headline:("Ukraine" "Israel") AND document_type:("article")',
+#     begin_date = "20231101", # Specify your start date in YYYYMMDD format
+#     end_date = "20240601",   # Specify your end date in YYYYMMDD format
+#     `api-key` = api_key,
+#     page=i,
+#     sort = "oldest"
+#   )
+#   response <- GET(base_url, query = params)
+#   content <- content(response, "text", encoding = "UTF-8")
+#   articles <- fromJSON(content)
+#   articles_list <- articles$response$docs
+#   
+#   message("Retrieving page ", i)
+#   pages[[i+1]] <- articles_list
+#   Sys.sleep(15) 
+# }
+# 
+# allNYTSearch <- rbind_pages(pages)
+# 
+# 
+# liberal_after <- allNYTSearch[, c("abstract", 
+#                                   "web_url", 
+#                                   "lead_paragraph",
+#                                   "source",
+#                                   "pub_date",
+#                                   "_id",
+#                                   "document_type")]
+# 
+# na_count_per_column <- colSums(is.na(allNYTSearch))
+# 
+# headlines <- allNYTSearch$headline[["main"]]
+# 
+# liberal_after$headlines <- headlines
+
+
+```
+
+*Duplicates: Identification and Removal for the New York Times Articles*
+
+Duplicate rows are removed based on identical lead paragraph and identical url of the articles.
+```{r}
+
+# duplicates <- duplicated(liberal_after[, "lead_paragraph"])
+# print(sum(duplicates))
+# 
+# duplicates <- duplicated(liberal_after[, "web_url"])
+# print(sum(duplicates))
+# 
+# duplicate_rows <- liberal_after[duplicates, ]
+# print(duplicate_rows)
+# 
+# liberal_after_clean <- liberal_after[!duplicated(liberal_after[, "lead_paragraph"]), ]
+
+```
+
+*Data Retrieval from ProQuest*
+
+A function for transforming txt file into tabular form is created and applied to the imported txt file of the articles.
+```{r}
+
+txt_to_dataframe <- function(filepath) {
+  
+  file_path <- filepath
+  
+  text_file <- readLines(file_path)
+  sections <- list()
+  
+  # Initialize variables to track section boundaries
+  start_index <- 1
+  
+  # Loop through the vector to identify and split sections
+  for (i in seq_along(text_file)) {
+    if (text_file[i] == "") {
+      # Found an empty string, so split the section
+      sections[[length(sections) + 1]] <- text_file[start_index:(i - 1)]
+      start_index <- i + 1
+    }
+  }
+  
+  # Add the last section if the vector doesn't end with an empty string
+  if (start_index <= length(text_file)) {
+    sections[[length(sections) + 1]] <- text_file[start_index:length(text_file)]
+  }
+  
+  for (i in seq_along(sections)) {
+    # Check if the element is a character vector
+    if (is.character(sections[[i]])) {
+      # Combine the elements into a single character string
+      sections[[i]] <- paste(sections[[i]], collapse = " ")
+    }
+  }
+  
+  if (file_path == "C:\\KU Leuven\\Collecting Big Data for Social Sciences\\November23_Now_Wall_Street_Israel.txt") {
+    pattern_dates <- "^Publication date:"
+    
+    # Use grep to find lines matching the pattern
+    dates <- grep(pattern_dates, sections, value = TRUE)
+    dates <- str_replace(dates, "Publication date: ", "")
+    dates <- c(dates, NA)
+  } else {
+    
+    pattern_dates <- "^Publication date:"
+    
+    # Use grep to find lines matching the pattern
+    dates <- grep(pattern_dates, sections, value = TRUE)
+    dates <- str_replace(dates, "Publication date: ", "")
+  }
+  
+  pattern_titles <- "^Title:"
+  
+  # Use grep to find lines matching the pattern
+  titles <- grep(pattern_titles, sections, value = TRUE)
+  titles <- str_replace(titles, "Title: ", "")
+  
+  # pattern_dates <- "^Publication date:"
+  # # Use grep to find lines matching the pattern
+  # dates <- grep(pattern_dates, sections, value = TRUE)
+  # dates <- str_replace(dates, "Publication date: ", "")
+  # dates <- c(dates, NA)
+  
+  pattern_text <- "^Full text:"
+  
+  # Use grep to find lines matching the pattern
+  text <- grep(pattern_text, sections, value = TRUE)
+  text <- str_replace(text, "Full text: ", "")
+  
+  new_dataframe <- data.frame(Date = dates, Title = titles, Text = text)
+  
+  return(new_dataframe)
+}
+
+```
+
+*Create dataframes for both Publishers*
+
+```{r}
+
+# after_nov23_ukraine_wall_street <- txt_to_dataframe("C:\\KU Leuven\\Collecting Big Data for Social Sciences\\November23_Now_Wall_Street_News.txt")
+# 
+# # Create Publisher Column
+# after_nov23_ukraine_wall_street$Publisher <- "Wall_Street_News"
+# 
+# after_nov23_israel_wall_street <- txt_to_dataframe("C:\\KU Leuven\\Collecting Big Data for Social Sciences\\November23_Now_Wall_Street_Israel.txt")
+# 
+# # Create Publisher Column
+# after_nov23_israel_wall_street$Publisher <- "Wall_Street_News"
+
+```
+
+```{r}
+
+####### Merge into a single dataframe 
+# 
+# conservative_after <- rbind(after_nov23_ukraine_wall_street, 
+#                             after_nov23_israel_wall_street
+# )
+#
+# conservative_after$Date <- mdy(conservative_after$Date)
+# conservative_after$Month_Year <- format(conservative_after$Date, "%b %Y")
+# conservative_after <- na.omit(conservative_after)
+# 
+# head(conservative_after)
+```
+
+*Duplicates: Identification and Removal of Duplicates for the Wall Street Journal Articles*
+
+```{r}
+
+########### Duplicates
+
+# duplicates <- duplicated(conservative_after[, c("Title","Text")])
+# print(sum(duplicates))
+# 
+# duplicate_rows <- conservative_after[duplicates, ]
+# print(duplicate_rows)
+# 
+# conservative_after <- conservative_after[!duplicated(conservative_after[, c("Title","Text")]), ]
+# 
+# duplicates <- duplicated(conservative_after[, c("Title")])
+# print(sum(duplicates))
+# 
+# conservative_after <- conservative_after[!duplicated(conservative_after[, "Title"]), ]
+# 
+# duplicates <- duplicated(conservative_after[, c("Text")])
+# print(sum(duplicates))
+# 
+# conservative_after <- conservative_after[!duplicated(conservative_after[, "Text"]), ]
+
+```
+
+# **5. Import Datasets from Local PC**
+
+Following the retrieval and cleaning of The New York Times (Liberal) and Wall Street Journal (Conservative) datasets, the datasets were stored in local storage. In the code below the "liberal_after_clean" and "conservative_after" files are imported for further use. 
+```{r warning=FALSE}
+################### Import Datasets 
+
+liberal_after <- read.csv("/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/liberal_after_clean.csv")
+
+conservative_after <- read.csv("/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/conservative_after.csv")
+
+liberal_after <- liberal_after[, c("headlines", 
+                                   "abstract",
+                                   "lead_paragraph",
+                                   "source",
+                                   "pub_date")]
+head(liberal_after)
+head(conservative_after)
+
+```
+
+Date columns are converted into date type for better handling. In addition, regarding articles from the New York Times, the lead_paragraph is combined with the abstract. This is done in order to provide more information as input to the chosen topic model used for topic allocation of each article.
+```{r}
+
+# Convert to date type 
+
+liberal_after$pub_date <- ymd_hms(liberal_after$pub_date)
+liberal_after$Month_Year <- format(liberal_after$pub_date, "%b %Y")
+
+liberal_after <- liberal_after %>% select(-pub_date)
+conservative_after <- conservative_after %>% select(-Date)
+
+# Combine abstract with lead_paragraph to help topic modelling 
+
+liberal_after <- liberal_after %>% 
+  mutate(
+    Text = paste(abstract, lead_paragraph, sep = " ")
+  )
+
+liberal_after <- liberal_after %>% select(-abstract,-lead_paragraph)
+
+liberal_after  <- liberal_after  %>%
+  rename(
+    Title = headlines,
+    Publisher = source,
+    text = Text
+  )
+
+conservative_after  <- conservative_after  %>%
+  rename(
+    text = Text
+  )
+```
+
+*Combine both Wall Street Journal and New York Times Articles into a single Dataframe*
+
+```{r}
+
+# Combine both dataframes into a single dataframe for all newspapers
+
+liberal_after <- liberal_after %>% select(Title, text, Month_Year, Publisher)
+
+conservative_after <- conservative_after %>% select(Title, text, Month_Year, Publisher)
+
+newspapers <- rbind(conservative_after, liberal_after)
+
+articles_per_newspaper <- newspapers %>%
+  group_by(Publisher) %>%
+  summarise(count = n())
+
+# articles_per_newspaper
+newspapers <- newspapers %>%
+  mutate(Publisher = ifelse(Publisher == "International New York Times", "The New York Times", Publisher))
+
+articles_per_newspaper <- newspapers %>%
+  group_by(Publisher) %>%
+  summarise(count = n())
+# articles_per_newspaper
+
+head(articles_per_newspaper)
+head(newspapers)
+
+```
+
+# **6. Text Preprocessing**
+
+* Tokenization
+* Punctuation Removal
+* Stopwords Removal 
+* Lemmatization
+* Document Term Matrix (DTM)
+* Trimming 
+* Part of Speech (POS) Tagging 
+
+The above techniques are used in order to include only the most important information from the text and filter out redundant information such as punctuation and similar words. The steps followed to apply the preprocessing steps are inspired and understood as in [7].
+
+*Use of General Expressions to Remove email and redudant information from each article"*
+
+```{r}
+print(newspapers[3,2])
+
+```
+
+As it can be observed from the above article, at the end of each article there is a sentence starting with "Credit:". In addition, in certain articles, there is email information such as "Alistair.Macdonald@wsj.com"  Both the email information and the part after and including "Credit:" of the the text will be removed, using general expression patterns as done below:
+```{r}
+###### Text Preprocessing 
+
+# Remove email patterns and Credit:.... from the end of paragraphs 
+
+remove_emails_credit <- function(article) {
+  email_pattern <- "\\b[\\w.%+-]+@[\\w.-]+\\.[a-zA-Z]{2,}\\b"
+  credit_pattern <- "Credit:.*$"
+  article <- str_remove_all(article, email_pattern)
+  article <- str_remove_all(article, credit_pattern)
+  article  <- trimws(article)
+  return(article)
+}
+
+newspapers$text <- sapply(newspapers$text, remove_emails_credit)
+
+print(newspapers[3,2])
+
+```
+
+Email patterns and articles needless information has now been removed.
+
+*Define the corpus of all the articles*
+
+```{r}
+
+# Investigate the corpus 
+
+corpus_news = corpus(newspapers)
+corpus_news
+
+```
+
+*Use of General Expressions to identify all types of punctuation present in the articles*
+
+```{r}
+# Create function to identify punctuation symbols throughout the corpus 
+
+extract_punctuation <- function(text) {
+  pattern <- "[^a-zA-Z ]"
+  extracted <- str_extract_all(text, pattern)
+  extracted <- unlist(extracted)
+  extracted <- extracted[!is.na(extracted)]
+  return(extracted)
+}
+
+# Identify punctuation symbols 
+
+punctuation_in_corpus <- extract_punctuation(corpus_news)
+print(unique(punctuation_in_corpus))
+
+```
+
+*Remove Punctuation from all the Articles*
+
+```{r}
+
+# Create function to remove digits and punctuation characters 
+
+remove_punctuation <- function(article) {
+  
+  pattern_1 <- "[[:digit:]]"
+  pattern_2 <- "[[:punct:]]"
+  symbols <- c("B=", "<", ">", "+", "b	 ", ".", "=", "|","","$","b,","B#","B%")
+  pattern_3 <- paste0("[", paste(symbols, collapse = ""), "]")
+  new_article <- article %>% 
+    str_replace_all(pattern_1, " ") %>% 
+    str_replace_all(pattern_2, " ") %>% 
+    str_replace_all(pattern_3, " ")
+  
+  return(new_article)
+}
+
+# Remove punctuation from the text column of the dataframe 
+
+newspapers$text <- sapply(newspapers$text, remove_punctuation)
+
+# Investigate the corpus again 
+
+corpus_news = corpus(newspapers)
+corpus_news
+```
+
+*Lower-case and Remove Stopwords from the Corpus*
+
+```{r}
+
+# Tokenize, lower-case and remove stopwords 
+
+tokens_news = corpus_news %>% 
+  tokens() %>% 
+  tokens_tolower() %>% 
+  tokens_remove(stopwords("english"))
+tokens_news
+
+```
+
+*Create a new column that contains the cleaned tokens of each article*
+
+```{r}
+
+# Create a list of tokens for each document in the corpus and assign 
+# it to the dataframe as column 
+
+vector_vectors <- list()
+for (i in 1:nrow(newspapers)) {
+  token_vector <- tokens_news[[i]]
+  vector_vectors <- c(vector_vectors, list(token_vector))
+}
+
+newspapers$tokens<- vector_vectors
+
+newspapers[1:10,c(2,5)]
+
+```
+
+*Identify difficult to detect duplicate articles, that were not detected previously*
+
+For each article we choose first 4 tokens from the cleaned list of tokens of each article. Articles with the same 4 tokens are classified as duplicates and removed.
+
+```{r}
+
+# Remove articles that appear different but they are actually duplicates 
+
+# Identify duplicates by looking at articles with the same first 4 tokens 
+
+newspapers <- newspapers %>% 
+  mutate(
+    four_elements = map(tokens, ~ .x[1:4])
+  )
+
+duplicates <- duplicated(newspapers[, "four_elements"])
+print(sum(duplicates))
+
+newspapers <- newspapers[!duplicated(newspapers[, "four_elements"]), ]
+
+newspapers <- newspapers %>% select(-tokens,-four_elements)
+
+```
+
+There are 345 duplicate articles, which are removed.
+
+*Lemmatization*
+
+Lemmatization is used to obtain the root word of each word, and thus keep only essential information.
+The below pipeline is used, to further lower-case the already cleaned corpus, remove stopwords and then lemmatize the tokens to only keep their root. In addition, tokens which consist of only one character are removed since they offer little to no information. Then a Document-Term Matrix from tokenized text data and a frequency matrix to analyze term frequencies across the corpus are generated.
+```{r}
+
+# Lemmatization of tokens and only keep tokens that are not a single character 
+
+corpus_news = corpus(newspapers)
+
+tokens_news = corpus_news %>% 
+  tokens() %>% 
+  tokens_tolower() %>% 
+  tokens_remove(stopwords("english")) %>% 
+  tokens_replace(pattern = lexicon::hash_lemmas$token, replacement = lexicon::hash_lemmas$lemma) %>%
+  tokens_select(min_nchar = 2) 
+tokens_news
+
+# Document - Term Matrix (Bag of Words) 
+
+dtm <- tokens_news %>% 
+  dfm()
+dtm
+
+# Frequency Matrix
+
+textstat_frequency(dtm)
+
+```
+
+We observe that the DTM is quite sparce with 99.11 percent of entries being zero.
+Moreover, from the frequency matrix, we observe that the verb "say" has a really high frequency, which does not offer any importance as a word. We continue by trimming the DTM matrix, so that tokens that appear to more that 75% of the articles (documents) are removed while tokens that appear in fewer that 5% of the articles, are also removed.
+
+*Trimming of the DTM and Visualization of the most frequent words*
+
+```{r}
+
+
+# Trim the DTM to keep tokens that appear in fewer
+# than 0.5 percent and below 75 percent of the documents 
+
+dtm_tr = dfm_trim(dtm, min_docfreq = 0.005, 
+                  max_docfreq = 0.75,
+                  docfreq_type = "prop")
+
+
+textplot_wordcloud(dtm, max_words=150,min_size=1, max_size = 4,random_order = F,
+                   color = rev(RColorBrewer::brewer.pal(5, "Dark2")))
+
+
+```
+
+*Extraction of Collocations and inclusion of them in the corpus*
+
+Collocations are words that always appear together in the text. Examples are "tel aviv" or "los angeles". They can offer useful information for the topic model used, thus are included in the corpus.
+```{r}
+
+# Extract collocations in the tokens and print the most important in terms of context
+
+colloc = tokens_news %>% 
+  textstat_collocations(min_count=30) %>% 
+  as_tibble()
+
+print(colloc %>% arrange(-lambda), n=50)
+
+```
+
+The lambda index signifies how important a collocation is, thus the above matrix is filtered based on lambda. We chose to keep collocations with lambda above 4 and append those collocations to the cleaned tokens list as shown below.
+```{r}
+
+# Add the collocations to the tokens list 
+
+collocations = colloc  %>% 
+  filter(lambda > 4)  %>%  
+  pull(collocation)  %>%  
+  phrase()
+
+tokens_news_col <- tokens_news %>%  tokens_compound(collocations)
+
+
+```
+
+*DTM Matrix Creation, Trimming and WordCloud Visualization of the tokens including the collocations*
+
+```{r}
+
+# Investigate DTM, Token Statistics and Workcloud 
+
+dtm_col <- tokens_news_col %>% 
+  dfm()
+
+textstat_frequency(dtm_col)
+
+dtm_col_tr = dfm_trim(dtm_col, min_docfreq = 0.005, 
+                  max_docfreq = 0.75,
+                  docfreq_type = "prop")
+
+textplot_wordcloud(dtm_col_tr, max_words=150,min_size=1, max_size = 4,
+                   color = rev(RColorBrewer::brewer.pal(4, "RdBu")))
+
+```
+
+We observe in the wordcloud that many tokens are verbs such as "see", "meet", "run", "know" while the dominant token is a verb itself, "say". In the following code, we apply spacy's POS Tagger to identify the part of speech of each token. Then we proceed to keep only NOUNS and PROPER NOUNS (which refer to an entity) and then create a DTM and WordCloud of only those type of tags.
+
+In the following code, spacy' POS Tagger is installed and saved. The goal is to apply the tagger on the preprocessed corpus (without the collocations). A new column is created where each row contains a character vector of the already preprocessed tokens of each article. Then for each row, the tokes are joined together and assigned to a new column. A corpus of this new column is then created for the POS Tagger to be applied on.
+```{r}
+head(newspapers[[1,2]])
+```
+
+*POS TAGGING: Identify Nouns and Proper nouns*
+
+```{r}
+
+# install.packages("spacyr")
+library(spacyr)
+# spacy_install()
+spacy_initialize(model = "en_core_web_sm")
+
+# Create a list of the tokens for each document and assign it as a column to the dataframe  
+
+vector_vectors <- list()
+for (i in 1:nrow(newspapers)) {
+  token_vector <- tokens_news[[i]]
+  vector_vectors <- c(vector_vectors, list(token_vector))
+}
+
+newspapers$tokens<- vector_vectors
+
+# Join the tokens list into text and replace the old text column 
+
+combine_tokens <- function(token_list) {
+  joined = str_c(token_list, collapse=" ")
+  return(joined)
+}
+
+newspapers$text <- sapply(newspapers$tokens, combine_tokens)
+
+# Obtain the corpus of the new text column 
+
+corpus_new <- corpus(newspapers)
+corpus_new
+
+```
+
+```{r}
+head(newspapers[[1,2]])
+```
+
+*Apply the POS Tagger - Keep only tokens that are Nouns or Proper Nouns*
+
+```{r}
+
+# Apply the tagger on the new corpus 
+
+# Obtain dataframe of pos tag per token in the corpus 
+pos_tags <- spacy_parse(corpus_new, 
+                        lemma = FALSE,
+                        pos = TRUE,
+                        entity = FALSE)
+
+# Keep only tokens of noun or propn tags 
+pos_tags_nouns <- pos_tags[pos_tags$pos == "NOUN" | pos_tags$pos == "PROPN", ]
+
+print(head(pos_tags_nouns))
+
+```
+
+```{r}
+
+# Create tokens per document dataframe 
+document_per_tokens <- pos_tags_nouns  %>%
+  group_by(doc_id) %>%
+  summarise(text = str_c(token, collapse=" ")) %>% 
+  mutate(digits = str_extract_all(doc_id, "\\d")) %>% 
+  mutate(digits = sapply(digits, function(x) paste(x, collapse = ""))) %>% 
+  mutate(digits = as.numeric(digits)) %>% 
+  arrange(digits)
+
+print(document_per_tokens)
+```
+
+*DTM and Frequency Matrix of the NOUN AND PROPN tags*
+
+```{r}
+
+# Create DTM for the noun-propn tokens 
+corpus_documents_nouns <- corpus(document_per_tokens)
+
+tokens_nouns = corpus_documents_nouns %>% 
+  tokens()
+
+dtm_nouns = tokens_nouns  %>% 
+  dfm()
+
+textstat_frequency(dtm_nouns)
+
+```
+
+We observe that now tokens are more clearly defined and appear cleaner.
+
+*Trimming of the new DTM and WordCloud Visualization*
+
+```{r}
+
+# Trim the DTM 
+dtm_nouns_tr = dfm_trim(dtm_nouns, min_docfreq = 0.005, 
+                        max_docfreq = 0.75,
+                        docfreq_type = "prop")
+
+textstat_frequency(dtm_nouns_tr)
+
+textplot_wordcloud(dtm_nouns_tr, max_words=150,min_size=1, max_size = 4,random_order = F,
+                   color = rev(RColorBrewer::brewer.pal(4, "Dark2")))
+
+```
+
+By only using nouns and proper nouns as tokens, the wordcloud is far more cleaner than the previous wordcloud. The most frequent words appear to be semantically important in relation to the topics under discussion.
+
+*Add the previously found collocations*
+
+```{r}
+
+# Add collocations to the noun and personal nouns tokens list 
+
+tokens_nouns_col <- tokens_nouns %>%  tokens_compound(collocations)
+
+dtm_nouns_col = tokens_nouns_col  %>% 
+  dfm()
+
+dtm_nouns_col_tr = dfm_trim(dtm_nouns_col, min_docfreq = 0.005, 
+                        max_docfreq = 0.75,
+                        docfreq_type = "prop")
+
+textplot_wordcloud(dtm_nouns_col_tr, max_words=150,min_size=1, max_size = 4,random_order = F,
+                   color = rev(RColorBrewer::brewer.pal(5, "Dark2")))
+
+```
+
+It appears that the most frequent tokens are "israel" followed by "ukraine", "hamas", "gaza", "russia", "year", "people" and "attack". In the following part of our project, we proceed with the Topic Modeling. Model of choice used is LDA.
+
+# **7. LDA - Unsupervised Topic Modeling**
+
+In order to identify the topics hidden in our articles a topic modeling technique called Latent Dirichlet Distribution (LDA) is used [7]. LDA is an unsupervised method (unlabeled data) that creates clusters of words, where is cluster contains words that together form a certain topic. The topic is a latent construct to be labeled by the user. The number of topics, k, to be estimated is decided based on certain methods as shown below.
+
+*Number of Topics*
+
+Two methods are used to decide on the number of topics. The 1st method, calculates 4 metrics [8-11]. The number of topics is chosen on the points where the first 2 metrics are minimized and the latter 2 metrics are maximized.
+
+*1st Method*
+
+```{r}
+
+result <- FindTopicsNumber(
+  dtm_nouns_col_tr,
+  topics = seq(from = 2, to = 15, by = 1),
+  metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "Gibbs",
+  control = list(seed = 77),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+FindTopicsNumber_plot(result)
+```
+
+From the plot, all metrics seem to converge at a number of topics number of 15 and above. For our analysis, a number of topics k = 15 is chosen based on this method.
+
+*2nd Method*
+
+A LDA model is fitted for each value of k, the number of topics. For each fit, a coherence score is calculated as in [12]. A high coherence score, means the assigned words in a topic's cluster, are more related to each other and thus the cluster is more coherent.
+
+A LDA model is fitted for each of the selected number of topics, k. In our analysis, a model was fitted for each of the 15 number of topics.
+```{r}
+
+normalize <- function(scores) {
+  min_score <- min(scores)
+  max_score <- max(scores)
+  (scores - min_score) / (max_score - min_score)
+}
+
+topic_coherence <- function(topic_model, dtm_data, top_n_tokens = 10,
+                            smoothing_beta = 1){
+  if (!contain_equal_docs(topic_model, dtm_data)) {
+    stop("The topic model object and document-term matrix contain an unequal number of documents.")
+  }
+  
+  UseMethod("topic_coherence")
+}
+#' @export
+topic_coherence.TopicModel <- function(topic_model, dtm_data, top_n_tokens = 10,
+                                       smoothing_beta = 1){
+  # Get top terms for each topic
+  top_terms <- terms(topic_model, top_n_tokens)
+  
+  # Coerce document-term matrix to simple triplet matrix
+  dtm_data <- as.simple_triplet_matrix(dtm_data)
+  
+  # Apply coherence calculation to all topics' top terms
+  unname(apply(top_terms, 2, coherence, dtm_data = dtm_data, smoothing_beta = smoothing_beta))
+}
+
+#' Helper function for calculating coherence for a single topic's worth of terms
+#'
+#' @param dtm_data a document-term matrix of token counts coercible to \code{simple_triplet_matrix}
+#' @param top_terms a character vector of the top terms for a given topic
+#' @param smoothing_beta a numeric indicating the value to use to smooth the document frequencies
+#' in order avoid log zero issues, the default is 1
+#'
+#' @importFrom slam tcrossprod_simple_triplet_matrix
+#'
+#' @keywords internal
+#'
+#' @return a numeric indicating coherence for the topic
+
+coherence <- function(dtm_data, top_terms, smoothing_beta){
+  # Get the relevant entries of the document-term matrix
+  rel_dtm <- dtm_data[,top_terms]
+  
+  # Turn it into a logical representing co-occurences
+  df_dtm <- rel_dtm > 0
+  
+  # Calculate document frequencies for each term and all of its co-occurences
+  cooc_mat <- tcrossprod_simple_triplet_matrix(t(df_dtm))
+  
+  # Quickly get the number of top terms for the for-loop below
+  top_n_tokens <- length(top_terms)
+  
+  # Using the syntax from the paper, calculate coherence
+  c_l <- 0
+  for (m in 2:top_n_tokens) {
+    for (l in 1:(top_n_tokens - 1)) {
+      df_ml <- cooc_mat[m,l]
+      df_l <- cooc_mat[l,l]
+      c_l <- c_l + log((df_ml + smoothing_beta) / df_l)
+    }
+  }
+  c_l
+}
+
+contain_equal_docs <- function(topic_model, dtm_data){
+  if (inherits(topic_model, "TopicModel")) {
+    topic_model@Dim[1] == nrow(dtm_data)
+  }
+}
+
+```
+
+```{r warning=FALSE}
+
+# Fit LDA model with different k and calculate Mean Coherence per Fitted LDA model 
+
+topics_vector <- c()
+coherence_scores_vector <- c()
+
+for (k_topic in 2:15) {
+  
+  # lda = dtm_nouns_tr %>%
+  #   convert(to = "topicmodels") %>%
+  #   LDA(k=k_topic,control=list(seed=123, alpha = 1/1:k_topic))
+  
+  lda <- LDA(dtm_nouns_col_tr, k = k_topic, control = list(seed=1234))
+  
+  coherence_scores <- topic_coherence(lda, dtm_nouns_col_tr)
+  
+  coherence_score <- mean(normalize(coherence_scores))
+  
+  coherence_scores_vector <- c(coherence_scores_vector, coherence_score)
+  topics_vector <- c(topics_vector, k_topic)
+  
+  print(paste("Iteration for k =", k_topic))
+}
+
+coherence_per_topic <- data.frame(topics = topics_vector, coherence_values = coherence_scores_vector )
+
+ggplot(data = coherence_per_topic, aes(x = topics, y = coherence_scores_vector, group = 1)) +
+  geom_line(color = "blue", size = 1.5) +
+  geom_point(size = 3) +  # Increase the point size
+  ggtitle("Mean Coherence Among Topics per Fitted LDA") +
+  labs(x = "Number of Topics (k)", y = "Mean Coherence Score") +
+  scale_x_continuous(breaks = seq(min(coherence_per_topic$topics), max(coherence_per_topic$topics), by = 1))
+
+```
+
+According to the mean coherence score, a LDA model with k = 9 number of topics seems to be ideal. Nevertheless, k=15 was chosen, since this number also provides a relatively high coherence score and coincides with the ideal number of topics from the 1st method, as previously shown.
+
+*Fit LDA Model with k=15*
+
+```{r}
+
+# Fit LDA with the chosen k from the above methods 
+
+lda <- LDA(dtm_nouns_col_tr, k = 15, control = list(seed=1234))
+
+terms(lda, 10)
+
+```
+
+The above table shows the results of the LDA model. Topics 1,2,4,5,7,10,11 and 14 seem to be related with the conflict in Israel while topics 6,8,9,12 and 15 seem to be related with the Ukraine War. A further dynamic visualization using the LDAvis package [13], allows for better exploration of the topics.
+
+*Document Term Matrix*
+
+```{r}
+
+dtm_nouns_col_tr
+
+```
+
+```{r}
+# Top 15 Tokens per Topic 
+# terms(lda, 10)
+
+# Topic Probabilities per Token
+ap_topics <- tidy(lda, matrix = "beta")
+ap_topics
+
+# Topic Probabilities per Document 
+ap_documents <- tidy(lda, matrix = "gamma")
+ap_documents
+
+```
+
+```{r}
+
+# Create Topic per Document dataframe for Visualizations 
+
+topics = posterior(lda)$topics %>% 
+  as_tibble() %>% 
+  rename_all(~paste0("Topic_", .))
+
+meta = docvars(corpus_documents_nouns)
+meta$id <- meta$digits
+meta$date <- newspapers$Month_Year
+meta$title <- newspapers$Title
+meta$publisher <- newspapers$Publisher
+
+meta %>%  
+  select(date:id) %>%
+  add_column(doc_id=docnames(corpus_documents_nouns),.before=1)
+tpd = bind_cols(meta, topics) 
+
+tpd <- tpd %>%
+  mutate(date = parse_date_time(date, "my"))
+
+tpd$Assigned_Topic <- apply(tpd[, 6:20], 1, function(row) {
+  colnames(tpd)[6:20][which.max(row)]
+})
+
+```
+
+*Results of LDA Model: Assigned Terms per Topics*
+
+```{r}
+
+# Obtain Top 10 tokens per Topic 
+ap_top_terms <- ap_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 6) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+# Plot most frequent tokens per Topic 
+ap_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+
+```
+
+*PyLDAavis Visualization of Topics*
+
+Interactive Visualization [13] of how terms are allocated among the topics.
+```{r}
+
+##################### PyLDAavis Visualization of Topics #####################
+
+phi <- posterior(lda)$terms %>% as.matrix
+cat(paste0('Dimensions of phi (topic-token-matrix): ',paste(dim(phi),collapse=' x '),'\n'))
+cat(paste0('phi examples (8 tokens): ','\n'))
+phi[,1:8] %>% as_tibble() %>% mutate_if(is.numeric, round, 5) %>% print()
+
+theta <- posterior(lda)$topics %>% as.matrix
+cat(paste0('\n\n','Dimensions of theta (document-topic-matrix): ',
+           paste(dim(theta),collapse=' x '),'\n'))
+
+cat(paste0('theta examples (8 documents): ','\n'))
+theta[1:8,] %>% as_tibble() %>% mutate_if(is.numeric, round, 5) %>% 
+  setNames(paste0('Topic', names(.))) %>% print()
+
+vocab <- colnames(phi) 
+
+doc_length <- newspapers %>% 
+  mutate(
+    number_tokens = map_int(tokens, length)
+  ) %>% 
+  select(Title,number_tokens) 
+
+doc_length = doc_length %>% pull(number_tokens)
+
+textstat_frequency(dtm_nouns_col_tr)
+
+term_frequency <- textstat_frequency(dtm_nouns_col_tr) %>% 
+  select(feature,frequency) %>% 
+  arrange(match(feature,vocab))
+
+term_frequency = term_frequency  %>% pull(frequency)
+
+json <- createJSON(phi, theta, doc_length, vocab, term_frequency)
+
+serVis(json)
+
+```
+
+An indicative screenshot of the visualization is provided:
+
+![PyLDAvis - Topic Allocation](/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/ldaavis1.jpg)
+
+![PyLDAvis - Topic Allocation](/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/ldaavis2.jpg) 
+
+*Assignment of Topic Labels*
+
+We can observe that terms such as "trump", "democratic party", "michigan", "election", "biden" are prevalent in this specific cluster. This cluster is numbered as 12 in the pyLDAvis visualization but corresponds to topic 5 from the LDA model output. This topic's title could be about articles concerning the U.S. Politics. Similarly, the remaining clusters are assigned topics as such:
+
+Topic 1: Israel-Hamas War Front 
+Topic 2: Israel-Hamas War Front 
+Topic 3: Humanitarian Loss-War Stories
+Topic 4: Israel-Iran Tensions 
+Topic 5: U.S. Politics-Elections
+Topic 6: International Court Interventions & World Unrest 
+Topic 7: Student War Protests 
+Topic 8: Ukraine-Russia War Front 
+Topic 9: Ukraine-Russia War Front
+Topic 10: U.S.A-China Diplomacy on Israel 
+Topic 11: Hostages & Ceasefire Negotiations 
+Topic 12: U.S. Politics-War Aid
+Topic 13: Impact on World Economy - Sanctions
+Topic 14: Israel-Hamas Conflict
+Topic 15: U.S & E.U. Politics-War Aid 
+```{r}
+
+# Rename the topics to match the PyLDAavis Visualization 
+
+tpd_labels <- tpd %>% select(date,title,publisher,Assigned_Topic)
+
+tpd_labels <- tpd_labels %>%
+  mutate(Assigned_Topic = case_when(
+    Assigned_Topic == "Topic_1" ~ "Israel-Hamas War Front",
+    Assigned_Topic == "Topic_2" ~ "Israel-Hamas War Front",
+    Assigned_Topic == "Topic_3" ~ "Humanitarian Loss-War Stories",
+    Assigned_Topic == "Topic_4" ~ "Israel-Iran Tensions ",
+    Assigned_Topic == "Topic_5" ~ "U.S. Politics-Elections",
+    Assigned_Topic == "Topic_6" ~ "International Court Interventions & World Unrest",
+    Assigned_Topic == "Topic_7" ~ "Student War Protests",
+    Assigned_Topic == "Topic_8" ~ "Ukraine-Russia War Front",
+    Assigned_Topic == "Topic_9" ~ "Ukraine-Russia War Front",
+    Assigned_Topic == "Topic_10" ~ "U.S.A-China Diplomacy on Israel",
+    Assigned_Topic == "Topic_11" ~ "Hostages & Ceasefire Negotiations",
+    Assigned_Topic == "Topic_12" ~ "U.S. Politics-War Aid",
+    Assigned_Topic == "Topic_13" ~ "Impact on World Economy - Sanctions",
+    Assigned_Topic == "Topic_14" ~ "Israel-Hamas Conflict",
+    Assigned_Topic == "Topic_15" ~ "U.S & E.U. Politics-War Aid",
+    TRUE ~ as.character(Assigned_Topic)  # Keep the original value for all other cases
+  ))
+
+head(tpd_labels)
+
+```
+
+*Frequency of topics across newspapers*
+
+```{r}
+
+########## Topics with the highest percentage of articles 
+
+articles_per_topic <- tpd_labels %>% 
+  group_by(Assigned_Topic) %>%
+  summarize(
+    total_articles = n()) %>% arrange(-total_articles)
+
+articles_per_topic$rel_freq <- articles_per_topic$total_articles / sum(articles_per_topic$total_articles)
+# 
+# articles_per_topic <- articles_per_topic %>%
+#   mutate(Assigned_Topic = factor(Assigned_Topic, levels = c("Topic_1","Topic_2","Topic_3",
+#                                                             "Topic_4","Topic_5","Topic_6","Topic_7",
+#                                                             "Topic_8","Topic_9","Topic_10","Topic_11",
+#                                                             "Topic_12","Topic_13","Topic_14","Topic_15")))
+
+ggplot(data = articles_per_topic, aes(x = Assigned_Topic, y = rel_freq)) +
+  geom_bar(stat = 'identity',color = "red", fill = "red") +
+  labs(title = "Relative Frequency of Articles per Topic",
+       x = "Topic",
+       y = "Relative Frequency") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+From the plot we observe that the majority of the articles from both newspapers, belong to the Israel-Hamas and Ukraine-Russia War Fronts. The next most frequent articles are of topics related to Ceasefire and Aid. 
+
+*Which topics are the most dominant per newspaper*
+
+```{r}
+
+######## Topic Dominance per Newspaper
+
+date_topic_size <- tpd_labels %>%
+  group_by(publisher, date, Assigned_Topic) %>%
+  summarize(count = n(),
+            .groups = 'drop')
+
+date_topic_size <- date_topic_size %>%
+  filter(date != as.Date('2023-01-01'))
+
+date_topic_size <- date_topic_size %>%
+  filter(date != as.Date('2024-06-01'))
+
+date_topic_size <- date_topic_size %>%
+  filter(publisher != "International New York Times")
+
+date_topic_size <- date_topic_size %>% 
+  group_by(publisher) %>% 
+  mutate(total_articles = sum(count)) %>% 
+  group_by(publisher,Assigned_Topic) %>% 
+  mutate(total_articles_per_topic = sum(count))
+
+date_topic_size$relative_freq = date_topic_size$total_articles_per_topic / date_topic_size$total_articles
+
+# Define a custom palette with 13 colors
+custom_palette <- c(
+  brewer.pal(12, "Paired"),  # Use the 12 colors from the "Paired" palette
+  "#999999"  # Add one more custom color (you can choose any hex color code)
+)
+
+# Your plotting code with the custom palette
+ggplot(date_topic_size, aes(x = relative_freq, y = publisher, fill = Assigned_Topic)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  labs(title = "Topic Dominance Per Newspaper",
+       x = "Relative Frequency of Number of Articles",
+       y = "Newspapers",
+       fill = "Topic Category") +
+  theme_minimal() +
+  scale_fill_manual(values = custom_palette) +
+  theme(
+    legend.key.size = unit(0.6, 'cm'),  # Adjusts the size of the legend keys
+    legend.text = element_text(size = 9),  # Adjusts the size of the legend text
+    legend.title = element_text(size = 11)  # Adjusts the size of the legend title
+  )
+
+```
+
+No newspapers seems to give more gravity to Aid related topics than the other. The differences are mainly in topics related to the world economy & sanctions, were as expected, the Wall Street Journal seems to publish significantly more articles related to that topic. Articles on the Israel-Hamas and Russian-Ukraine conflicts dominate in both newspapers. 
+
+*Topics Fluctuation through time from start of Israel-Hamas conflict until May 2024*
+
+The Alluvial plot [14], is a great way to observe how topics fluctuate across time, since the start of the Israel-Hamas conflict.
+```{r}
+
+#### Topics Through Time Nov23 to May24
+
+articles_distribution_per_date <- date_topic_size %>% 
+  select(publisher,date,Assigned_Topic,count) %>% 
+  group_by(date,Assigned_Topic) %>% 
+  summarise(
+    articles_per_date_per_topic = sum(count),
+    .groups = 'drop'
+    ) 
+
+total_articles_per_date <- articles_distribution_per_date %>% 
+  group_by(date) %>% 
+  summarize(
+    articles_per_date = sum(articles_per_date_per_topic)
+  )
+
+articles_distribution_per_date <- merge(
+  articles_distribution_per_date, total_articles_per_date, by = "date", all = FALSE) %>% 
+  mutate(
+    topic_weight_per_date = articles_per_date_per_topic / articles_per_date
+  )
+
+library(alluvial)
+
+unique(articles_distribution_per_date$date)
+
+articles_distribution_per_date$date <- factor(articles_distribution_per_date$date, 
+                                              levels = unique(articles_distribution_per_date$date))
+
+articles_distribution_per_date <- articles_distribution_per_date %>% 
+  select(Assigned_Topic,date,topic_weight_per_date)
+
+cols <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b",
+          "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78","gray7")
+
+alluvial_ts(articles_distribution_per_date, wave = .3, ygap = 5, col = cols, plotdir = 'centred', alpha=.9,
+            grid = TRUE, grid.lwd = 5, xmargin = 0.2, lab.cex = .7, xlab = '',
+            ylab = '', border = NA, axis.cex = .8, leg.cex = .7,
+            leg.col='white', 
+            title = "Topic Trends Across Time\nFrom November 2023 to May 2024\n") 
+
+```
+
+The above plot can be used to validate if indeed the topics are allocated correctly, by looking if the spikes in articles' frequency of a specific topic at a specific time, indeed match an observed event in real time, that caused that spike at the specific time period. This form of validation is called predictive validity [17]. From the time series plot above, we can observe that articles on Israel-Iran tensions show a high frequency starting from April 2024, which indeed coincides with the aerial attacks of Iran on Israel.  
+
+# **8. Sentiment Analysis on Articles with Headlines About Funding and Support**
+
+The goal is to predict the sentiment of articles related to Aid and Support provided in both the Russian-Ukraine and Israel-Hamas conflict. The aim is to compare newspapers in terms of their sentiment towards Aid provided in either conflict. The headlines of the articles were used to predict the sentiment of each article. A dictionary method was chosen for the sentiment prediction. In the dictionary method, a pre-existing dictionary is used, where the keys correspond to words and the values to the emotion related to that word. Sentiment is assigned to an article by counting the frequency of positive or negative tokens appearing in a give headline. The NRC sentiment dictionary [16] was chosen as the pre-defined lexicon in our analysis.
+
+*Identify Topics Related to Funding and Aid*
+
+![Topics with Higher Frequency of the word "Aid"](/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/aid.jpg)
+
+![Topics with Higher Frequency of the word "Fund"](/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/fund.jpg)
+
+From the PyLDAvis visualization, we observe that the topics 1,2,3,4,10 and 12 have the highest appearance of the word "Aid". These topics correspond to topics 2,5,10,11,12 and 15 from the LDA model output. The word "fund" additionaly appears in topics 13 and 15, which correspond to topics 13 and 14 of the topic model.
+
+In the next step, only articles belonging to topics 2,5,10,11,12,13,14,15. More precisely, these numbered topics correspond to the following labels: "Israel-Hamas War Front", "U.S. Politics-Elections", "U.S.A-China Diplomacy on Israel","Hostages & Ceasefire Negotiations","U.S. Politics-War Aid","Impact on World Economy - Sanctions","Israel-Hamas Conflict","U.S & E.U. Politics-War Aid".
+
+*Filter the articles based on these Topics*
+
+```{r}
+# Filter only the desired topics regarding funding and aid 
+tpd_labels_idf <- tpd_labels %>% filter(Assigned_Topic %in% c("Israel-Hamas War Front",
+                                                              "U.S. Politics-Elections",
+                                                              "U.S.A-China Diplomacy on Israel",
+                                                              "Hostages & Ceasefire Negotiations",
+                                                              "U.S. Politics-War Aid",
+                                                              "Impact on World Economy - Sanctions",
+                                                              "Israel-Hamas Conflict",
+                                                              "U.S & E.U. Politics-War Aid"))
+
+head(tpd_labels_idf)
+
+```
+
+*Identify the most important words in the articles' headlines using a TF-IDF matrix*
+
+The TF-IDF matrix is calculated as in [7]. The TF-IDF matrix helps identify the most important words. Importance is defined as a combination of frequency across documents (articles) and frequency within each document (article). Basically, a penalty is assigned, when a token appears in many documents. For example, a stop word would appear a lot in a document and thus could be important but it would also appear in almost all the documents, which negatively influences it's importance.
+```{r}
+
+colnames(tpd_labels_idf) <- c('date','text','publisher','assigned_topic')
+
+tf_idf = corpus(tpd_labels_idf) %>% 
+  tokens() %>% 
+  dfm() %>% 
+  dfm_tfidf(scheme_tf="prop", smoothing=1)
+
+tf_idf_dataframe <- as.data.frame(as.matrix(tf_idf))
+
+# Find the highest TF-IDF scores for each document
+important_words <- tf_idf_dataframe %>%
+  summarise(across(everything(), max, na.rm = TRUE)) %>%
+  pivot_longer(cols = everything(), names_to = "term", values_to = "tf_idf") %>%
+  arrange(desc(tf_idf))
+
+# Print the top 10 most important words
+head(important_words, 10)
+
+```
+
+The TF-IDF matrix did not help identify important words regarding funding and aid. A more direct approach will be followed. Articles that mention words such as "aid" and "fund" in either the headlines or text will be used for the sentiment analysis. Articles that mention words such as "aid","fund","assistance","support", "package" and "bill" in their text and articles that additionally have the dollar sign, \$, in the headlines, will be investigated in terms of their sentiment (positive or negative).
+
+*Keep articles that mention words related to the terms funding and aid*
+
+*Clean the headlines of the articles*
+
+* Lowercase 
+* Stopwords Removal 
+* Lemmatization
+```{r}
+
+newspapers_titles <- newspapers %>% select(Month_Year,Publisher,Title)
+
+colnames(newspapers_titles) <- c("Month_Year","Publisher","text")
+
+corpus_titles <- corpus(newspapers_titles)
+
+tokens_titles = corpus_titles %>%
+  tokens() %>%
+  tokens_tolower() %>%
+  tokens_remove(stopwords("english")) %>%
+  tokens_replace(pattern = lexicon::hash_lemmas$token, replacement = lexicon::hash_lemmas$lemma) %>%
+  tokens_select(min_nchar = 2)
+
+# Create a list of the tokens for each document and assign it as a column to the dataframe  
+
+vector_vectors <- list()
+for (i in 1:nrow(newspapers_titles)) {
+  token_vector <- tokens_titles[[i]]
+  vector_vectors <- c(vector_vectors, list(token_vector))
+  
+}
+
+newspapers_titles$tokens<- vector_vectors
+
+# Join the tokens list into text and replace the old text column 
+
+combine_tokens <- function(token_list) {
+  joined = str_c(token_list, collapse=" ")
+  
+  return(joined)
+}
+
+newspapers_titles$text <- sapply(newspapers_titles$tokens, combine_tokens)
+
+head(newspapers_titles[,3:4])
+
+titles <- newspapers_titles$text
+newspapers$titles <- titles
+
+```
+
+*Use of general expressions to identify funding related articles*
+
+Articles are investigated both by their headlines and main text. Articles with Funding and Aid related words in their text or headlines are chosen.
+```{r}
+funding_terms_text <- c("aid","fund","support","bill","assistance","package",
+                         "billion")
+
+pattern <- paste0("\\b(", paste(funding_terms_text, collapse = "|"), ")\\b")
+
+identify_funding <- function(text) { 
+  
+  if (grepl(pattern, text)) {
+    
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+}
+
+newspapers_aid <- newspapers %>%
+  mutate(
+    funding_topic_title = unlist(map(titles, identify_funding)),
+    funding_topic_text = unlist(map(text,identify_funding))# unlist creates a vector 
+  )
+
+head(newspapers_aid)
+
+sum(newspapers_aid$funding_topic_title)
+
+sum(newspapers_aid$funding_topic_text)
+
+```
+
+*Filter by looking at both main text and headlines*
+
+```{r}
+
+newspapers_aid <- newspapers_aid %>% filter(
+  funding_topic_text == TRUE | funding_topic_title == TRUE
+)
+
+newspapers_aid <- newspapers_aid %>% select(Month_Year, Title, titles, Publisher)
+
+colnames(newspapers_aid) <- c("month_year","title","title_text","publisher")
+```
+
+```{r}
+
+newspapers_aid <- merge(newspapers_aid, tpd_labels ,by="title")
+
+newspapers_aid <- newspapers_aid %>% select(date, month_year, title, title_text, publisher.x, Assigned_Topic)
+
+colnames(newspapers_aid) <- c("date", "month", "title", "title_text", "publisher", "topic")
+```
+
+```{r}
+
+newspapers_aid <- newspapers_aid %>% mutate(
+  conflict = case_when(topic=="Hostages & Ceasefire Negotiations" ~ "Israel Conflict",
+                       topic=="Israel-Hamas Conflict" ~ "Israel Conflict",
+                       topic=="Israel-Hamas War Front" ~ "Israel Conflict",
+                       topic=="Israel-Iran Tensions "  ~ "Israel Conflict",
+                       topic=="Ukraine-Russia War Front" ~ "Ukraine Conflict",
+                       TRUE ~ topic)
+)
+
+ukraine_terms <- c("ukraine","russia","ukrainian","zelensky","putin","ukrai")
+israel_terms <- c("israel","israeli","jewish","netanyahu","gaza")
+
+pattern_1 <- paste0("\\b(", paste(ukraine_terms, collapse = "|"), ")\\b")
+pattern_2 <- paste0("\\b(", paste(israel_terms, collapse = "|"), ")\\b")
+
+identify_funding <- function(text) { 
+  
+  if (grepl(pattern_1, text)) {
+    
+    return("Ukraine Conflict")
+    
+  } else if (grepl(pattern_2, text)) {
+    
+    return("Israel Conflict")
+    } else {
+         return(text)
+    }
+  }
+
+newspapers_aid <- newspapers_aid %>%
+  mutate(
+    conflict_2 = unlist(map(title_text, identify_funding)),
+)
+
+newspapers_aid <- newspapers_aid %>% filter(
+  conflict_2 %in% c("Ukraine Conflict","Israel Conflict") | conflict %in% c("Ukraine Conflict", "Israel Conflict")
+)
+
+```
+
+```{r}
+
+newspapers_aid <- newspapers_aid %>% filter(
+  conflict_2 %in% c("Ukraine Conflict","Israel Conflict")) %>% select(date, month, title, title_text, publisher, conflict_2)
+
+colnames(newspapers_aid) <- c("date","month","title","cleaned_text","publisher","topic")
+
+head(newspapers_aid)
+```
+
+```{r}
+# write.csv(newspapers_aid, "newspapers_titles.csv", row.names = FALSE)
+```
+
+
+*Loading the dataset for Sentiment Analysis*
+
+```{r}
+# Load the data
+data <- read.csv("/Users/alessandrosalvatori/Desktop/KU LEUVEN/EXAMS/SECOND YEAR/RETAKES/COLLECTING AND ANALYZING BIG DATA FOR SOCIAL SCIENCES/PROJECT/Sentiment Analysis/newspapers_titles.csv", stringsAsFactors = FALSE)
+
+```
+
+*Additional Text Preprocessing*
+
+```{r}
+# Preprocessing the text data
+# Convert text to lowercase
+data$cleaned_text <- tolower(data$cleaned_text)
+
+# Remove punctuation, numbers, and stopwords
+data$cleaned_text <- removePunctuation(data$cleaned_text)
+data$cleaned_text <- removeNumbers(data$cleaned_text)
+data$cleaned_text <- removeWords(data$cleaned_text, stopwords("en"))
+
+```
+
+*Sentiment Analysis using Dictionary Approach*
+
+```{r}
+# Apply NRC sentiment analysis
+nrc_sentiments <- get_nrc_sentiment(data$cleaned_text)
+
+# Add the sentiment scores to the original data
+data <- cbind(data, nrc_sentiments)
+
+# Aggregate sentiment data to get overall positive and negative sentiment for each article
+data$sentiment <- ifelse(data$positive > data$negative, "positive", "negative")
+```
+
+```{r}
+# Summarize the data by publisher and topic
+sentiment_summary <- data %>%
+  group_by(publisher, topic, sentiment) %>%
+  summarise(count = n(), .groups = "drop")
+```
+
+Looking at the results about the Israel conflict, both newspapers show a significant skew towards negative sentiment. However, the Wall Street Journal has a much stronger negative bias compared to The New York Times. The ratio of negative to positive coverage in Wall Street Journal is slightly more pronounced than in The New York Times, indicating that Wall Street Journal might be more critical about this conflict. In contrast to the Israel conflict, the sentiment is more balanced for the Ukraine conflict, especially in The New York Times, where positive articles (88) slightly outweigh negative ones (78). This suggests a more optimistic portrayal of the Ukraine conflict in The New York Times. Wall Street Journal still shows a bias towards negative sentiment, but the difference is less stark than in the other conflict.
+
+The differences in how the two newspapers cover both conflicts can offer valuable insights into their editorial policies and the audiences they try to reach. For example, The New York Times might aim for a more balanced or optimistic view in some cases, while the second one might focus more on negative aspects.
+
+*Visualizations of the results*
+
+The following code is used to visualize the results obtained from the sentiment analysis. The R package ggplot was used. 
+```{r}
+# Bar plot for comparing sentiment across topics
+ggplot(sentiment_summary, aes(x = topic, y = count, fill = sentiment)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ publisher) +
+  labs(title = "Sentiment Comparison by Topic and Publisher",
+       x = "Topic",
+       y = "Sentiment Count") +
+  scale_fill_manual(values = c("positive" = "lightgreen", "negative" = "#FF7074"))
+  
+```
+
+This graph is a barplot showing the distribution of positive and negatives articles of the two newspapers on the two conflicts. They give a better understanding of the conclusions already made previously.
+
+These results highlight significant differences in how these two major newspapers cover the Israel and Ukraine conflicts. The New York Times tends towards a more balanced portrayal, especially in the Ukraine conflict, while Wall Street Journal shows a stronger negative bias in both conflicts. These differences can influence public perception and provide insights into the editorial strategies of these publications.
+
+# **9. Limitations**
+
+* Data before the Israel-Hamas conflict could also have been selected. The availability of data before the conflict, would allow an expansion of the main research question, allowing to investigate if the Israel-Hamas War led to a decrease in the coverage of U.S. news agencies of the ongoing Russia-Ukraine War. This would be possible due to the always-on nature of the data. 
+
+* For the topic modeling, the New York Times API, does not provide access to the full content of the articles, but only provides access to an abstract and to headlines. This can affect the performance of the topic model, since a bigger text provided as input, would mean bigger information for the LDA model. 
+
+* For the sentiment analysis a dictionary method was chosen. Better alternatives that could be used were Machine Learning methods. Machine learning methods tend to overperform dictionary methods [18]. Nevertheless, a dictionary method which is sufficiently validated and which uses a lexicon ideal for the domain, can lead to good performance. In our analysis, there was no validation of the sentiment analysis used. 
+
+# **10. Conclusion**
+
+From the Topic Modeling analysis no significant differences regarding aid and funding topics were observed between the two newspapers. From the time series of the topics since the start of the war (alluvial plot) and from the frequency of articles plot (bar plot), it can be observed that the Israel-Hamas Conflict remains the most dominant topic across newspapers, in terms of the articles’ frequency. The sentiment analysis appears to be more informative on answering our research questions. 
+More meaningful results were obtained from the sentiment analysis, were it seems that the Wall Street Journal, with more conservative ideals, tends to have a more negative feeling towards the financial support and aid in these two conflicts.
+The results from the sentiment analysis are in line with what we would expect, being the Wall Street Journal more conservative and the New York Times more liberal, and they seem to confirm that there might be some bias in newspapers when addressing these topics.
+
+# **References**
+
+[1] "Ukraine's counteroffensive against Russia in maps: latest updates." Accessed: Jul. 07, 2024. [Online]. Available: <https://www.ft.com/content/4351d5b0-0888-4b47-9368-6bc4dfbccbf5>
+
+[2] "How Much U.S. Aid Is Going to Ukraine? \| Council on Foreign Relations." Accessed: Jul. 07, 2024. [Online]. Available: <https://www.cfr.org/article/how-much-us-aid-going-ukraine>
+
+[3] "Why are some Republicans opposing more aid for Ukraine?," Dec. 07, 2023. Accessed: Jul. 07, 2024. [Online]. Available: <https://www.bbc.com/news/world-us-canada-67649497>
+
+[4] R. W. Austin Moira Fagan, Sneha Gubbala and Sarah, "1. Views of Ukraine and U.S. involvement with the Russia-Ukraine war," Pew Research Center. Accessed: Jul. 07, 2024. [Online]. Available: <https://www.pewresearch.org/global/2024/05/08/views-of-ukraine-and-u-s-involvement-with-the-russia-ukraine-war/>
+
+[5] "APIs \| Dev Portal." Accessed: Aug. 09, 2024. [Online]. Available: <https://developer.nytimes.com/apis>
+
+[6] D. Altschiller, "Research: WR150: Educated Electorate: Newspapers - which way do they lean?" Accessed: Jul. 07, 2024. [Online]. Available: <https://library.bu.edu/blumenthal/bias>
+
+[7] W. van A. Arcila Damian Trilling &. Carlos, "Computational Analysis of Communication." Accessed: May 16, 2024. [Online]. Available: <https://cssbook.net/>
+
+[8] R. Arun, V. Suresh, C. E. Veni Madhavan, and M. N. Narasimha Murthy, "On Finding the Natural Number of Topics with Latent Dirichlet Allocation: Some Observations," in Advances in Knowledge Discovery and Data Mining, vol. 6118, M. J. Zaki, J. X. Yu, B. Ravindran, and V. Pudi, Eds., in Lecture Notes in Computer Science, vol. 6118. , Berlin, Heidelberg: Springer Berlin Heidelberg, 2010, pp. 391--402. doi: 10.1007/978-3-642-13657-3_43.
+
+[9] J. Cao, T. Xia, J. Li, Y. Zhang, and S. Tang, "A density-based method for adaptive LDA model selection," Neurocomputing, vol. 72, no. 7--9, pp. 1775--1781, Mar. 2009, doi: 10.1016/j.neucom.2008.06.011.
+
+[10] R. Deveaud, E. SanJuan, and P. Bellot, "Accurate and effective latent concept modeling for ad hoc information retrieval," Document numérique, vol. 17, no. 1, pp. 61--84, Apr. 2014, doi: 10.3166/dn.17.1.61-84.
+
+[11] T. L. Griffiths and M. Steyvers, "Finding scientific topics," Proc. Natl. Acad. Sci. U.S.A., vol. 101, no. suppl_1, pp. 5228--5235, Apr. 2004, doi: 10.1073/pnas.0307752101.
+
+[12] F. tang, "Beginner's Guide to LDA Topic Modelling with R," Medium. Accessed: Aug. 09, 2024. [Online]. Available: <https://towardsdatascience.com/beginners-guide-to-lda-topic-modelling-with-r-e57a5a8e7a25>
+
+[13] C. Sievert, cpsievert/LDAvis. (Jul. 10, 2024). JavaScript. Accessed: Aug. 09, 2024. [Online]. Available: <https://github.com/cpsievert/LDAvis>
+
+[14] M. Bojanowski, mbojan/alluvial. (Jul. 16, 2024). R. Accessed: Aug. 09, 2024. [Online]. Available: <https://github.com/mbojan/alluvial>
+
+[15] P. Ghasiya and K. Okamura, "Understanding the Middle East through the eyes of Japan's Newspapers: A topic modelling and sentiment analysis approach," Digital Scholarship in the Humanities, vol. 36, no. 4, pp. 871--885, Dec. 2021, doi: 10.1093/llc/fqab019.
+
+[16] Canada, G. of C. N. R. C. (2024, August 31). NRC emotion lexicon—NRC Publications Archive. <https://nrc-publications.canada.ca/eng/view/object/?id=0b6a5b58-a656-49d3-ab3e-252050a7a88c>
+
+[17] Grimmer, J., & Stewart, B. M. (2013). Text as Data: The Promise and Pitfalls of Automatic Content Analysis Methods for Political Texts. Political Analysis, 21(3), 267–297. <https://doi.org/10.1093/pan/mps028>
+
+[18] Wankhade, M., Rao, A. C. S., & Kulkarni, C. (2022). A survey on sentiment analysis methods, applications, and challenges. Artificial Intelligence Review, 55(7), 5731–5780. <https://doi.org/10.1007/s10462-022-10144-1>
